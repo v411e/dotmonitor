@@ -1,0 +1,7 @@
+version: '3.7'
+
+services:
+  dotmonitor:
+    image: valentinriess/dotmonitor
+    env_file: .env
+    restart: always
