@@ -32,6 +32,8 @@ RANDOM_POSITIVE_GIFS = [
     'https://media1.tenor.com/images/c815396f481f2e27a36f48149cfe27c4/tenor.gif?itemid=10889686',
     'https://media1.tenor.com/images/6bde0a3fb2796a908e85e8704c910f23/tenor.gif?itemid=12275806',
     'https://media1.tenor.com/images/99f79b368759c8117f3599b9ef0b8a10/tenor.gif?itemid=9581464',
+    'https://media1.tenor.com/images/3afba750e7f7acbaecde5c43ac192127/tenor.gif?itemid=13756050',
+    'https://media1.tenor.com/images/c17b2cdb406f209c9b78ae1b8d0097b2/tenor.gif?itemid=13335250',
 ]
 
 RANDOM_NEGATIVE_GIFS = [
@@ -41,6 +43,7 @@ RANDOM_NEGATIVE_GIFS = [
     'https://media1.tenor.com/images/c289b6327705e42674e3981a0972bc52/tenor.gif?itemid=4732213',
     'https://media1.tenor.com/images/4f6d3bba0006171ef081a8a6d3a372a0/tenor.gif?itemid=9178158',
     'https://media1.tenor.com/images/02259d16d192ffb8950cef62e1ed048d/tenor.gif?itemid=5079872',
+    'https://media1.tenor.com/images/7fd5c29195518f21fa2164971bb4af8d/tenor.gif?itemid=13335249',
 ]
 
 if not TELEGRAM_BOT_TOKEN:
