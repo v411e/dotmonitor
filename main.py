@@ -117,18 +117,21 @@ def poke(update, context):
         message = str('\n'.join(map(str, r.answer))) + '\nEverything seems fine. The dot is resolving #LikeABosch.'
         context.bot.sendDocument(
             chat_id=update.effective_chat.id,
+            reply_to_message_id=update.message.message_id,
             document=random.choice(RANDOM_POSITIVE_GIFS),
             caption='✅ ' + str(message),
         )
     except dns.exception.DNSException as error:
         context.bot.sendDocument(
             chat_id=update.effective_chat.id,
+            reply_to_message_id=update.message.message_id,
             document=random.choice(RANDOM_NEGATIVE_GIFS),
             caption='🚨 ' + str(error),
         )
     except Exception as error:
         context.bot.sendDocument(
             chat_id=update.effective_chat.id,
+            reply_to_message_id=update.message.message_id,
             document=random.choice(RANDOM_NEGATIVE_GIFS),
             caption='⚠️ ' + str(error),
         )
