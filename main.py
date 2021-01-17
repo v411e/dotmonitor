@@ -74,12 +74,13 @@ def start(update, context):
     global consecutiveFailures
     consecutiveFailures = 0
     chat_id = update.message.chat_id
+    channel_link = 'https://t.me/' + MAIN_CHANNEL[1:]
     remove_job_if_exists(str(chat_id), context)
     context.job_queue.run_repeating(silent_check, CHECK_INTERVAL, 0, context=chat_id, name=str(chat_id))
     context.bot.send_message(chat_id=update.effective_chat.id, text="Hey. I am having a look on the dot.\n"
                                                                     "If you want me to make an "
                                                                     "unscheduled extra check type /poke. Stop me with "
-                                                                    "/stop")
+                                                                    "/stop. Feel free to join " + channel_link)
 
 
 def remove_job_if_exists(name, context):
