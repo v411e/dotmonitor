@@ -2,8 +2,6 @@ version: '3.7'
 
 services:
   dotmonitor:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: valentinriess/dotmonitor
     env_file: .env
     restart: always
