@@ -27,6 +27,8 @@ CHECK_INTERVAL = int(os.environ.get('CHECK_INTERVAL', 20))
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
 HTTP_BASIC_AUTH_USER = os.environ.get('HTTP_BASIC_AUTH_USER')
 HTTP_BASIC_AUTH_PWD = os.environ.get('HTTP_BASIC_AUTH_PWD')
+MAIN_CHANNEL = os.environ.get('MAIN_CHANNEL')
+
 
 RANDOM_POSITIVE_GIFS = [
     'https://media1.tenor.com/images/5a5b26e19c0df8b4d602103c454dba80/tenor.gif?itemid=5177277',
@@ -188,7 +190,7 @@ def silent_check(context):
                 caption='✅ DoT is back up',
             )
             consecutiveFailures = 0
-        context.bot.setChatDescription(chat_id='@dotmonitor', description=get_stats())
+        context.bot.setChatDescription(chat_id=MAIN_CHANNEL, description=get_stats())
     except dns.exception.DNSException as error:
         consecutiveFailures += 1
         print('DNS error: ', error, 'message no.', consecutiveFailures)
@@ -227,7 +229,7 @@ def main():
     dispatcher.add_error_handler(error_callback)
 
     # Add @dotmonitor channel to job_queue
-    updater.job_queue.run_repeating(silent_check, CHECK_INTERVAL, 0, context='@dotmonitor', name=str('@dotmonitor'))
+    updater.job_queue.run_repeating(silent_check, CHECK_INTERVAL, 0, context=MAIN_CHANNEL, name=str(MAIN_CHANNEL))
 
     # Start the Bot
     updater.start_polling()
