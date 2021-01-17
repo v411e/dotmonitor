@@ -145,8 +145,31 @@ def poke(update, context):
         )
 
 
+def get_stats():
+    """"Retrieve stats from pihole api. Requires HTTPBasicAuth."""
+    message = "Stats not available."
+    try:
+        response = requests.get('https://d07p1hoie.valentinriess.com/admin/api.php',
+                                auth=HTTPBasicAuth(HTTP_BASIC_AUTH_USER,
+                                                   HTTP_BASIC_AUTH_PWD))
+        data = response.json()
+        total_queries = data.get('dns_queries_today')
+        queries_blocked = data.get('ads_blocked_today')
+        percent_blocked = data.get('ads_percentage_today')
+        domains_on_blocklist = data.get('domains_being_blocked')
+        message = "Total Queries: " + f'{total_queries:n}' \
+                  + "\nQueries Blocked: " + f'{queries_blocked:n}' \
+                  + "\nPercent Blocked: " + f'{percent_blocked:n}%' \
+                  + "\nDomains on Blocklist: " + f'{domains_on_blocklist:n}'
+    except RequestException as error:
+        print(error)
+    except ValueError as error:
+        print(error)
+    return message
+
+
 def silent_check(context):
-    """Performs a silent check. Message is only sent if there is a problem."""
+    """Performs a silent check. Message is only sent if there is a problem. Also updates stats in chat description."""
     global consecutiveFailures
     try:
         dns.query.tls(
@@ -165,6 +188,7 @@ def silent_check(context):
                 caption='✅ DoT is back up',
             )
             consecutiveFailures = 0
+        context.bot.setChatDescription(chat_id='@dotmonitor', description=get_stats())
     except dns.exception.DNSException as error:
         consecutiveFailures += 1
         print('DNS error: ', error, 'message no.', consecutiveFailures)
@@ -177,25 +201,7 @@ def silent_check(context):
 
 
 def stat(update, context):
-    try:
-        response = requests.get('https://d07p1hoie.valentinriess.com/admin/api.php', auth=HTTPBasicAuth(HTTP_BASIC_AUTH_USER,
-                                                                                       HTTP_BASIC_AUTH_PWD))
-        data = response.json()
-        total_queries = data.get('dns_queries_today')
-        queries_blocked = data.get('ads_blocked_today')
-        percent_blocked = data.get('ads_percentage_today')
-        domains_on_blocklist = data.get('domains_being_blocked')
-        message = "Total Queries: " + f'{total_queries:n}'\
-                  + "\nQueries Blocked: " + f'{queries_blocked:n}'\
-                  + "\nPercent Blocked: " + f'{percent_blocked:n}%'\
-                  + "\nDomains on Blocklist: " + f'{domains_on_blocklist:n}'
-        update.message.reply_text(message)
-    except RequestException as error:
-        update.message.reply_text('API connection failure.')
-        print(error)
-    except ValueError as error:
-        update.message.reply_text('Something went wrong.')
-        print(error)
+    update.message.reply_text(get_stats())
 
 
 def error_callback(update, context):
