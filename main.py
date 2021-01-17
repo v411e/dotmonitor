@@ -1,3 +1,4 @@
+import random
 import sys
 
 from telegram.ext import Updater
@@ -18,6 +19,29 @@ DNS_HOST = os.environ.get('DNS_HOST')
 TIMEOUT = int(os.environ.get('TIMEOUT', 5))
 CHECK_INTERVAL = int(os.environ.get('CHECK_INTERVAL', 20))
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+
+RANDOM_POSITIVE_GIFS = [
+    'https://media1.tenor.com/images/5a5b26e19c0df8b4d602103c454dba80/tenor.gif?itemid=5177277',
+    'https://media.giphy.com/media/Sk3KytuxDQJQ4/giphy.gif',
+    'https://media1.tenor.com/images/9b42522f041a7bb7e2c75a8f2e79ba90/tenor.gif?itemid=5762334',
+    'https://media1.tenor.com/images/774acad780cbd690b5291e942866269c/tenor.gif?itemid=5122518',
+    'https://media1.tenor.com/images/6ef46d3ace15910c3814796d489160fb/tenor.gif?itemid=14611487',
+    'https://media1.tenor.com/images/7c02ebe55ca7a950f816d2609f37086f/tenor.gif?itemid=11928987',
+    'https://media1.tenor.com/images/ab284fe03692507c6943d80ccc109dd9/tenor.gif?itemid=5102354',
+    'https://media1.tenor.com/images/b23a908ae01021bc1064937bad061b11/tenor.gif?itemid=7953536',
+    'https://media1.tenor.com/images/c815396f481f2e27a36f48149cfe27c4/tenor.gif?itemid=10889686',
+    'https://media1.tenor.com/images/6bde0a3fb2796a908e85e8704c910f23/tenor.gif?itemid=12275806',
+    'https://media1.tenor.com/images/99f79b368759c8117f3599b9ef0b8a10/tenor.gif?itemid=9581464',
+]
+
+RANDOM_NEGATIVE_GIFS = [
+    'https://media1.tenor.com/images/a34763736bfa3469bfba1abe4c082071/tenor.gif?itemid=9390989',
+    'https://media1.tenor.com/images/7497db91e124928aaddca8a209ac9f3e/tenor.gif?itemid=5168755',
+    'https://media1.tenor.com/images/7fbd19af37f516713d86e33b16997dd9/tenor.gif?itemid=4895737',
+    'https://media1.tenor.com/images/c289b6327705e42674e3981a0972bc52/tenor.gif?itemid=4732213',
+    'https://media1.tenor.com/images/4f6d3bba0006171ef081a8a6d3a372a0/tenor.gif?itemid=9178158',
+    'https://media1.tenor.com/images/02259d16d192ffb8950cef62e1ed048d/tenor.gif?itemid=5079872',
+]
 
 if not TELEGRAM_BOT_TOKEN:
     print('TELEGRAM_BOT_TOKEN needs to be set', file=sys.stderr)
@@ -84,17 +108,26 @@ def poke(update, context):
             timeout=TIMEOUT,
         )
 
+        if r.rcode() == dns.rcode.NXDOMAIN:
+            raise Exception('Domain not found, DoT is working though.')
+
         message = str('\n'.join(map(str, r.answer))) + '\nEverything seems fine. The dot is resolving #LikeABosch.'
         context.bot.sendDocument(
             chat_id=update.effective_chat.id,
-            document='https://media1.tenor.com/images/5a5b26e19c0df8b4d602103c454dba80/tenor.gif?itemid=5177277',
+            document=random.choice(RANDOM_POSITIVE_GIFS),
             caption='✅ ' + str(message),
         )
     except dns.exception.DNSException as error:
         context.bot.sendDocument(
             chat_id=update.effective_chat.id,
-            document='https://media1.tenor.com/images/a34763736bfa3469bfba1abe4c082071/tenor.gif?itemid=9390989',
+            document=random.choice(RANDOM_NEGATIVE_GIFS),
             caption='🚨 ' + str(error),
+        )
+    except Exception as error:
+        context.bot.sendDocument(
+            chat_id=update.effective_chat.id,
+            document=random.choice(RANDOM_NEGATIVE_GIFS),
+            caption='⚠️ ' + str(error),
         )
 
 
@@ -115,7 +148,7 @@ def silent_check(context):
             context.bot.send_message(context.job.context, text=str('Dot is up again!'))
             context.bot.sendDocument(
                 context.job.context,
-                document='https://media.giphy.com/media/Sk3KytuxDQJQ4/giphy.gif',
+                document=random.choice(RANDOM_POSITIVE_GIFS),
                 caption='✅ DoT is back up',
             )
             consecutiveFailures = 0
@@ -125,7 +158,7 @@ def silent_check(context):
         if consecutiveFailures == 2:
             context.bot.sendDocument(
                 context.job.context,
-                document='https://media1.tenor.com/images/a34763736bfa3469bfba1abe4c082071/tenor.gif?itemid=9390989',
+                document=random.choice(RANDOM_NEGATIVE_GIFS),
                 caption='🚨 DoT is unreachable!\n' + str(error),
             )
 
