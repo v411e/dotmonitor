@@ -145,7 +145,6 @@ def silent_check(context):
         #     message = str(answer) + '\nEverything seems fine. The dot is resolving like a king.'
         #     context.bot.send_message(context.job.context, text=str(message))
         if consecutiveFailures > 0:
-            context.bot.send_message(context.job.context, text=str('Dot is up again!'))
             context.bot.sendDocument(
                 context.job.context,
                 document=random.choice(RANDOM_POSITIVE_GIFS),
