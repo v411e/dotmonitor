@@ -72,9 +72,17 @@ def poke(update, context):
         r = dns.query.tls(QUERY, DNS_IP, server_hostname=DNS_HOST, timeout=TIMEOUT)
         for answer in r.answer:
             message = str(answer) + '\nEverything seems fine. The dot is resolving #LikeABosch.'
-            context.bot.send_message(chat_id=update.effective_chat.id, text=str(message))
-            context.bot.sendDocument(chat_id=update.effective_chat.id, document='https://media.giphy.com/media/Sk3KytuxDQJQ4/giphy.gif')
+            context.bot.sendDocument(
+                chat_id=update.effective_chat.id,
+                document='https://media.giphy.com/media/Sk3KytuxDQJQ4/giphy.gif',
+                caption='✅ ' + str(message),
+            )
     except dns.exception.DNSException as error:
+        context.bot.sendDocument(
+            chat_id=update.effective_chat.id,
+            document='https://media1.tenor.com/images/a34763736bfa3469bfba1abe4c082071/tenor.gif?itemid=9390989',
+            caption='🚨 ' + str(error),
+        )
         context.bot.send_message(chat_id=update.effective_chat.id, text=str(error))
 
 
