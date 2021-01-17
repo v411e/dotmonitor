@@ -1,12 +1,18 @@
 import random
 import sys
-
+import requests
+from requests import RequestException
+from requests.auth import HTTPBasicAuth
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 import logging
 import dns.query
 import dns.exception
 import os
+import locale
+
+# Set locale
+locale.setlocale(locale.LC_ALL, "de_DE.UTF8")
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -19,6 +25,8 @@ DNS_HOST = os.environ.get('DNS_HOST')
 TIMEOUT = int(os.environ.get('TIMEOUT', 5))
 CHECK_INTERVAL = int(os.environ.get('CHECK_INTERVAL', 20))
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+HTTP_BASIC_AUTH_USER = os.environ.get('HTTP_BASIC_AUTH_USER')
+HTTP_BASIC_AUTH_PWD = os.environ.get('HTTP_BASIC_AUTH_PWD')
 
 RANDOM_POSITIVE_GIFS = [
     'https://media1.tenor.com/images/5a5b26e19c0df8b4d602103c454dba80/tenor.gif?itemid=5177277',
@@ -168,6 +176,28 @@ def silent_check(context):
             )
 
 
+def stat(update, context):
+    try:
+        response = requests.get('https://d07p1hoie.valentinriess.com/admin/api.php', auth=HTTPBasicAuth(HTTP_BASIC_AUTH_USER,
+                                                                                       HTTP_BASIC_AUTH_PWD))
+        data = response.json()
+        total_queries = data.get('dns_queries_today')
+        queries_blocked = data.get('ads_blocked_today')
+        percent_blocked = data.get('ads_percentage_today')
+        domains_on_blocklist = data.get('domains_being_blocked')
+        message = "Total Queries: " + f'{total_queries:n}'\
+                  + "\nQueries Blocked: " + f'{queries_blocked:n}'\
+                  + "\nPercent Blocked: " + f'{percent_blocked:n}%'\
+                  + "\nDomains on Blocklist: " + f'{domains_on_blocklist:n}'
+        update.message.reply_text(message)
+    except RequestException as error:
+        update.message.reply_text('API connection failure.')
+        print(error)
+    except ValueError as error:
+        update.message.reply_text('Something went wrong.')
+        print(error)
+
+
 def error_callback(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
@@ -187,6 +217,7 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("poke", poke))
     dispatcher.add_handler(CommandHandler("stop", stop))
+    dispatcher.add_handler(CommandHandler("stat", stat))
     dispatcher.add_error_handler(error_callback)
 
     # Add @dotmonitor channel to job_queue
