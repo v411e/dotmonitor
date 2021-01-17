@@ -13,9 +13,7 @@ logger = logging.getLogger(__name__)
 
 # DNS query parameters
 TEST_DOMAIN = os.environ.get('TEST_DOMAIN', 'google.com')
-QUERY = dns.message.make_query(TEST_DOMAIN, dns.rdatatype.A)
 DNS_IP = os.environ.get('DNS_IP')
-
 DNS_HOST = os.environ.get('DNS_HOST')
 TIMEOUT = int(os.environ.get('TIMEOUT', 5))
 CHECK_INTERVAL = int(os.environ.get('CHECK_INTERVAL', 20))
@@ -68,40 +66,68 @@ def stop(update, context):
 
 def poke(update, context):
     """Allows to make a unscheduled test if dot is up or down."""
+
+    test_domain = TEST_DOMAIN
+    rdatatype = dns.rdatatype.A
+
+    if len(context.args) >= 1:
+        test_domain = context.args[0]
+
+    if len(context.args) == 2:
+        rdatatype = dns.rdatatype.from_text(context.args[1])
+
     try:
-        r = dns.query.tls(QUERY, DNS_IP, server_hostname=DNS_HOST, timeout=TIMEOUT)
-        for answer in r.answer:
-            message = str(answer) + '\nEverything seems fine. The dot is resolving #LikeABosch.'
-            context.bot.sendDocument(
-                chat_id=update.effective_chat.id,
-                document='https://media.giphy.com/media/Sk3KytuxDQJQ4/giphy.gif',
-                caption='✅ ' + str(message),
-            )
+        r = dns.query.tls(
+            dns.message.make_query(test_domain, rdtype=rdatatype),
+            DNS_IP,
+            server_hostname=DNS_HOST,
+            timeout=TIMEOUT,
+        )
+
+        message = str('\n'.join(map(str, r.answer))) + '\nEverything seems fine. The dot is resolving #LikeABosch.'
+        context.bot.sendDocument(
+            chat_id=update.effective_chat.id,
+            document='https://media1.tenor.com/images/5a5b26e19c0df8b4d602103c454dba80/tenor.gif?itemid=5177277',
+            caption='✅ ' + str(message),
+        )
     except dns.exception.DNSException as error:
         context.bot.sendDocument(
             chat_id=update.effective_chat.id,
             document='https://media1.tenor.com/images/a34763736bfa3469bfba1abe4c082071/tenor.gif?itemid=9390989',
             caption='🚨 ' + str(error),
         )
-        context.bot.send_message(chat_id=update.effective_chat.id, text=str(error))
 
 
 def silent_check(context):
     """Performs a silent check. Message is only sent if there is a problem."""
     global consecutiveFailures
     try:
-        dns.query.tls(QUERY, DNS_IP, server_hostname=DNS_HOST, timeout=TIMEOUT)
+        dns.query.tls(
+            dns.message.make_query(TEST_DOMAIN, dns.rdatatype.A),
+            DNS_IP,
+            server_hostname=DNS_HOST,
+            timeout=TIMEOUT,
+        )
         # for answer in r.answer:
         #     message = str(answer) + '\nEverything seems fine. The dot is resolving like a king.'
         #     context.bot.send_message(context.job.context, text=str(message))
         if consecutiveFailures > 0:
             context.bot.send_message(context.job.context, text=str('Dot is up again!'))
+            context.bot.sendDocument(
+                context.job.context,
+                document='https://media.giphy.com/media/Sk3KytuxDQJQ4/giphy.gif',
+                caption='✅ DoT is back up',
+            )
             consecutiveFailures = 0
     except dns.exception.DNSException as error:
         consecutiveFailures += 1
         print('DNS error: ', error, 'message no.', consecutiveFailures)
         if consecutiveFailures == 2:
-            context.bot.send_message(context.job.context, text=str(error))
+            context.bot.sendDocument(
+                context.job.context,
+                document='https://media1.tenor.com/images/a34763736bfa3469bfba1abe4c082071/tenor.gif?itemid=9390989',
+                caption='🚨 DoT is unreachable!\n' + str(error),
+            )
 
 
 def error_callback(update, context):
