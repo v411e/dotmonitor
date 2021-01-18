@@ -10,6 +10,7 @@ import dns.query
 import dns.exception
 import os
 import locale
+import json
 
 # Set locale
 locale.setlocale(locale.LC_ALL, "de_DE.UTF8")
@@ -25,8 +26,9 @@ DNS_HOST = os.environ.get('DNS_HOST')
 TIMEOUT = int(os.environ.get('TIMEOUT', 5))
 CHECK_INTERVAL = int(os.environ.get('CHECK_INTERVAL', 20))
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
-HTTP_BASIC_AUTH_USER = os.environ.get('HTTP_BASIC_AUTH_USER')
-HTTP_BASIC_AUTH_PWD = os.environ.get('HTTP_BASIC_AUTH_PWD')
+PIHOLE_HTTP_BASIC_AUTH_USER = os.environ.get('HTTP_BASIC_AUTH_USER')
+PIHOLE_HTTP_BASIC_AUTH_PWD = os.environ.get('HTTP_BASIC_AUTH_PWD')
+PIHOLE_API_URL = os.environ.get('PIHOLE_API_URL')
 MAIN_CHANNEL = os.environ.get('MAIN_CHANNEL')
 
 
@@ -66,40 +68,48 @@ if not DNS_HOST:
     print('DNS_HOST needs to be set', file=sys.stderr)
 
 # Global variable used for avoiding multiple "down" messages.
-consecutiveFailures = 0
+consecutive_failures = 0
+subscribed_chat_ids = {MAIN_CHANNEL}
+
+if os.path.isfile('/data/subscriptions.json'):
+    file = open('/data/subscriptions.json', 'r')
+    subscribed_chat_ids = set(json.load(file))
+    file.close()
+    logger.info('Subscriptions loaded.')
+
+
+def persist_subscriptions():
+    if os.path.isdir('/data'):
+        file = open('/data/subscriptions.json', 'w')
+        json.dump(list(subscribed_chat_ids), file)
+        file.close()
 
 
 def start(update, context):
     """Append job to queue and send welcome message."""
-    global consecutiveFailures
-    consecutiveFailures = 0
+    global consecutive_failures
+    consecutive_failures = 0
     chat_id = update.message.chat_id
+
     channel_link = 'https://t.me/' + MAIN_CHANNEL[1:]
-    remove_job_if_exists(str(chat_id), context)
-    context.job_queue.run_repeating(silent_check, CHECK_INTERVAL, 0, context=chat_id, name=str(chat_id))
+    subscribed_chat_ids.add(chat_id)
     context.bot.send_message(chat_id=update.effective_chat.id, text="Hey. I am having a look on the dot.\n"
                                                                     "If you want me to make an "
                                                                     "unscheduled extra check type /poke. Stop me with "
                                                                     "/stop. Feel free to join " + channel_link)
-
-
-def remove_job_if_exists(name, context):
-    """Remove job with given name. Returns whether job was removed."""
-    current_jobs = context.job_queue.get_jobs_by_name(name)
-    if not current_jobs:
-        return False
-    for job in current_jobs:
-        job.schedule_removal()
-    return True
+    persist_subscriptions()
 
 
 def stop(update, context):
     """Remove job from queue and send confirm message."""
     chat_id = update.message.chat_id
-    job_removed = remove_job_if_exists(str(chat_id), context)
-    text = 'Subscription successfully cancelled!' if job_removed else 'You have no active subscription. Use /start to ' \
-                                                                      'start it again.'
-    update.message.reply_text(text)
+
+    try:
+        subscribed_chat_ids.remove(chat_id)
+        persist_subscriptions()
+        update.message.reply_text('Subscription successfully cancelled!')
+    except ValueError:
+        update.message.reply_text('You have no active subscription. Use /start to start it again.')
 
 
 def poke(update, context):
@@ -126,21 +136,21 @@ def poke(update, context):
             raise Exception('Domain not found, DoT is working though.')
 
         message = str('\n'.join(map(str, r.answer))) + '\nEverything seems fine. The dot is resolving #LikeABosch.'
-        context.bot.sendDocument(
+        context.bot.send_document(
             chat_id=update.effective_chat.id,
             reply_to_message_id=update.message.message_id,
             document=random.choice(RANDOM_POSITIVE_GIFS),
             caption='✅ ' + str(message),
         )
     except dns.exception.DNSException as error:
-        context.bot.sendDocument(
+        context.bot.send_document(
             chat_id=update.effective_chat.id,
             reply_to_message_id=update.message.message_id,
             document=random.choice(RANDOM_NEGATIVE_GIFS),
             caption='🚨 ' + str(error),
         )
     except Exception as error:
-        context.bot.sendDocument(
+        context.bot.send_document(
             chat_id=update.effective_chat.id,
             reply_to_message_id=update.message.message_id,
             document=random.choice(RANDOM_NEGATIVE_GIFS),
@@ -152,9 +162,9 @@ def get_stats():
     """"Retrieve stats from pihole api. Requires HTTPBasicAuth."""
     message = "Stats not available."
     try:
-        response = requests.get('https://d07p1hoie.valentinriess.com/admin/api.php',
-                                auth=HTTPBasicAuth(HTTP_BASIC_AUTH_USER,
-                                                   HTTP_BASIC_AUTH_PWD))
+        response = requests.get(PIHOLE_API_URL,
+                                auth=HTTPBasicAuth(PIHOLE_HTTP_BASIC_AUTH_USER,
+                                                   PIHOLE_HTTP_BASIC_AUTH_PWD))
         data = response.json()
         total_queries = data.get('dns_queries_today')
         queries_blocked = data.get('ads_blocked_today')
@@ -163,7 +173,8 @@ def get_stats():
         message = "Total Queries: " + f'{total_queries:n}' \
                   + "\nQueries Blocked: " + f'{queries_blocked:n}' \
                   + "\nPercent Blocked: " + f'{percent_blocked:n}%' \
-                  + "\nDomains on Blocklist: " + f'{domains_on_blocklist:n}'
+                  + "\nDomains on Blocklist: " + f'{domains_on_blocklist:n}' \
+                  + "\nCurrent status: " + MAIN_CHANNEL
     except RequestException as error:
         print(error)
     except ValueError as error:
@@ -173,7 +184,7 @@ def get_stats():
 
 def silent_check(context):
     """Performs a silent check. Message is only sent if there is a problem. Also updates stats in chat description."""
-    global consecutiveFailures
+    global consecutive_failures
     try:
         dns.query.tls(
             dns.message.make_query(TEST_DOMAIN, dns.rdatatype.A),
@@ -184,23 +195,25 @@ def silent_check(context):
         # for answer in r.answer:
         #     message = str(answer) + '\nEverything seems fine. The dot is resolving like a king.'
         #     context.bot.send_message(context.job.context, text=str(message))
-        if consecutiveFailures > 0:
-            context.bot.sendDocument(
-                context.job.context,
-                document=random.choice(RANDOM_POSITIVE_GIFS),
-                caption='✅ DoT is back up',
-            )
-            consecutiveFailures = 0
-        context.bot.setChatDescription(chat_id=MAIN_CHANNEL, description=get_stats())
+        if consecutive_failures > 0:
+            for chat_id in subscribed_chat_ids:
+                context.bot.send_document(
+                    chat_id=chat_id,
+                    document=random.choice(RANDOM_POSITIVE_GIFS),
+                    caption='✅ DoT is back up',
+                )
+            consecutive_failures = 0
+        context.bot.set_chat_description(chat_id=MAIN_CHANNEL, description=get_stats())
     except dns.exception.DNSException as error:
-        consecutiveFailures += 1
-        print('DNS error: ', error, 'message no.', consecutiveFailures)
-        if consecutiveFailures == 2:
-            context.bot.sendDocument(
-                context.job.context,
-                document=random.choice(RANDOM_NEGATIVE_GIFS),
-                caption='🚨 DoT is unreachable!\n' + str(error),
-            )
+        consecutive_failures += 1
+        print('DNS error: ', error, 'message no.', consecutive_failures)
+        if consecutive_failures == 2:
+            for chat_id in subscribed_chat_ids:
+                context.bot.send_document(
+                    chat_id=chat_id,
+                    document=random.choice(RANDOM_NEGATIVE_GIFS),
+                    caption='🚨 DoT is unreachable!\n' + str(error),
+                )
 
 
 def stat(update, context):
@@ -229,8 +242,8 @@ def main():
     dispatcher.add_handler(CommandHandler("stat", stat))
     dispatcher.add_error_handler(error_callback)
 
-    # Add @dotmonitor channel to job_queue
-    updater.job_queue.run_repeating(silent_check, CHECK_INTERVAL, 0, context=MAIN_CHANNEL, name=str(MAIN_CHANNEL))
+    # Add repeating job to queue
+    updater.job_queue.run_repeating(silent_check, CHECK_INTERVAL, 0)
 
     # Start the Bot
     updater.start_polling()

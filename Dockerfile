@@ -9,4 +9,5 @@ RUN apk add --no-cache alpine-sdk libffi-dev openssl-dev && \
 
 COPY . /app
 
+VOLUME /data
 ENTRYPOINT ["python", "/app/main.py"]

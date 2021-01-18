@@ -1,7 +1,12 @@
 version: '3.7'
 
+volumes:
+  data: {}
+
 services:
   dotmonitor:
     image: valentinriess/dotmonitor
     env_file: .env
     restart: always
+    volumes:
+      data:/data
